@@ -32,27 +32,19 @@ jobs:
         run: |
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+            echo "docker_tag=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
           else
             echo "version=0.0.0-dev.$(date +%s)" >> $GITHUB_OUTPUT
-            echo "docker_tag=latest" >> $GITHUB_OUTPUT
+            echo "docker_tag=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and Push Docker Image
         env:
           IMAGE_NAME: ${{ secrets.DOCKER_REPO }}
         run: |
-          if [[ "${{ steps.version.outputs.docker_tag }}" == "latest" ]]; then
-            docker buildx build --platform linux/amd64,linux/arm64 \
-              -t $IMAGE_NAME:latest \
-              --push .
-          else
-            docker buildx build --platform linux/amd64,linux/arm64 \
-              -t $IMAGE_NAME:${{ steps.version.outputs.version }} \
-              -t $IMAGE_NAME:latest \
-              --push .
-          fi
-          
-          echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t $IMAGE_NAME:${{ steps.version.outputs.docker_tag }} \
+            --push .
 
   helm:
     runs-on: ubuntu-latest
@@ -124,10 +116,10 @@ jobs:
         run: |
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-            echo "docker_tag=${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "docker_tag=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
           else
             echo "version=0.0.0-dev.$(date +%s)" >> $GITHUB_OUTPUT
-            echo "docker_tag=latest" >> $GITHUB_OUTPUT
+            echo "docker_tag=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create namespace if not exists
